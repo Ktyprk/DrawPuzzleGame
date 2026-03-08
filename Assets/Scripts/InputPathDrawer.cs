@@ -7,28 +7,63 @@ public class InputPathDrawer : MonoBehaviour
     [SerializeField] private Camera mainCamera;
     [SerializeField] private LayerMask groundLayer;
     [SerializeField] private LineRenderer lineRenderer;
+    [SerializeField] private Transform playerTransform;
 
     [Header("Settings")]
     [SerializeField] private float minPointDistance = 0.2f;
     [SerializeField] private float lineYOffset = 0.05f;
+    [SerializeField] private float maxStartDistanceFromPlayer = 1.5f;
 
     private readonly List<Vector3> pathPoints = new List<Vector3>();
     private bool isDrawing;
 
     public IReadOnlyList<Vector3> PathPoints => pathPoints;
     public bool IsDrawing => isDrawing;
-
-    public void BeginDraw()
+    
+    public void SetPlayerTransform(Transform player)
     {
-        isDrawing = true;
+        playerTransform = player;
+    }
+
+    public bool BeginDraw()
+    {
+        isDrawing = false;
         pathPoints.Clear();
 
-        if (TryGetGroundPoint(out Vector3 point))
+        if (playerTransform == null)
+        {
+            UpdateLine();
+            return false;
+        }
+
+        if (!TryGetGroundPoint(out Vector3 point))
+        {
+            UpdateLine();
+            return false;
+        }
+
+        Vector3 playerPoint = playerTransform.position;
+        playerPoint.y = 0f;
+
+        float startDistance = Vector3.Distance(playerPoint, point);
+        if (startDistance > maxStartDistanceFromPlayer)
+        {
+            UpdateLine();
+            return false;
+        }
+
+        isDrawing = true;
+
+        pathPoints.Add(playerPoint);
+
+        float distanceToFirstHit = Vector3.Distance(playerPoint, point);
+        if (distanceToFirstHit >= minPointDistance)
         {
             pathPoints.Add(point);
         }
 
         UpdateLine();
+        return true;
     }
 
     public void DrawStep()

@@ -166,6 +166,9 @@ public class GameFlowController : MonoBehaviour
         activeLevel.Setup(this);
         activeLevel.ResetLevel();
 
+        if (pathDrawer != null && playerTransform != null)
+            pathDrawer.SetPlayerTransform(playerTransform);
+
         MovePlayerToSpawnPoint();
     }
 
@@ -187,8 +190,8 @@ public class GameFlowController : MonoBehaviour
 
     private void StartGame()
     {
-        ResetPlayerChildren(); 
-        
+        ResetPlayerChildren();
+
         gameStarted = true;
         currentState = GameState.WaitingToDraw;
 
@@ -215,8 +218,8 @@ public class GameFlowController : MonoBehaviour
 
         MovePlayerToSpawnPoint();
     }
-    
-    void ResetPlayerChildren()
+
+    private void ResetPlayerChildren()
     {
         if (playerTransform == null) return;
 
@@ -224,7 +227,7 @@ public class GameFlowController : MonoBehaviour
         {
             Destroy(playerTransform.GetChild(i).gameObject);
         }
-        
+
         SetWalking(false);
     }
 
@@ -232,8 +235,10 @@ public class GameFlowController : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0))
         {
-            if (pathDrawer != null)
-                pathDrawer.BeginDraw();
+            if (pathDrawer == null) return;
+
+            bool started = pathDrawer.BeginDraw();
+            if (!started) return;
 
             if (instructionText != null)
                 instructionText.text = string.Empty;
@@ -295,12 +300,15 @@ public class GameFlowController : MonoBehaviour
         if (playerMover != null)
         {
             playerMover.TickMove(isHolding);
-            SetWalking(true);
-
+            SetWalking(isHolding);
         }
 
-        if (playerMover == null || !playerMover.CanMove)
-            currentState = GameState.ReadyToMove;
+        if (playerMover != null && !playerMover.CanMove)
+        {
+            SetWalking(false);
+            FinishLevel(false);
+            return;
+        }
 
         if (Input.GetMouseButtonUp(0))
         {
@@ -308,9 +316,11 @@ public class GameFlowController : MonoBehaviour
             SetWalking(false);
         }
     }
-    
-    void SetWalking(bool value)
+
+    private void SetWalking(bool value)
     {
+        if (playerMover == null) return;
+
         Animator[] animators = playerMover.gameObject.GetComponentsInChildren<Animator>();
 
         foreach (var anim in animators)
@@ -335,6 +345,8 @@ public class GameFlowController : MonoBehaviour
         if (playerMover != null)
             playerMover.StopMove();
 
+        SetWalking(false);
+
         if (instructionText != null)
             instructionText.text = string.Empty;
 
@@ -356,8 +368,8 @@ public class GameFlowController : MonoBehaviour
 
     private void RestartLevel()
     {
-        ResetPlayerChildren(); 
-        
+        ResetPlayerChildren();
+
         if (activeLevel != null)
             Destroy(activeLevel.gameObject);
 
@@ -393,7 +405,7 @@ public class GameFlowController : MonoBehaviour
 
     private void LoadNextLevel()
     {
-        ResetPlayerChildren(); 
+        ResetPlayerChildren();
         currentLevelIndex++;
 
         if (levelPrefabs == null || levelPrefabs.Length == 0)
@@ -432,7 +444,7 @@ public class GameFlowController : MonoBehaviour
 
         RefreshLevelText();
     }
-    
+
     public void FailFromEnemy()
     {
         if (currentState == GameState.Ended)
